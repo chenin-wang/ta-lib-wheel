@@ -58,8 +58,8 @@ jobs:
           CIBW_ARCHS_WINDOWS: ${{ matrix.arch_config.cibw }}
           CIBW_BUILD: cp${{ matrix.python-version == '3.8' && '38' || matrix.python-version == '3.9' && '39' || matrix.python-version == '3.10' && '310' || matrix.python-version == '3.11' && '311' || matrix.python-version == '3.12' && '312' }}-${{ matrix.arch_config.platform }}
           CIBW_ENVIRONMENT_WINDOWS: >
-            TA_LIBRARY_PATH="ta-lib-${{ env.TALIB_C_VER }}\_build;$LIB"
-            TA_INCLUDE_PATH="ta-lib-${{ env.TALIB_C_VER }}\include;$INCLUDE"
+            TA_LIBRARY_PATH="ta-lib-$TALIB_C_VER\\_build;$LIB"
+            TA_INCLUDE_PATH="ta-lib-$TALIB_C_VER\\include;$INCLUDE"
             PIP_NO_BUILD_ISOLATION=false
         run: |
           python -m cibuildwheel --output-dir wheelhouse
