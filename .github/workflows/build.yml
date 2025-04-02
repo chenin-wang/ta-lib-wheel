@@ -1,0 +1,72 @@
+name: Build TA-Lib wheels for Windows
+
+on:
+  workflow_dispatch:  # 允许手动触发
+
+env:
+  TALIB_C_VER: 0.6.4
+  TALIB_PY_VER: 0.6.3
+  PIP_NO_VERIFY: 0
+  PIP_VERBOSE: 1
+  CIBW_BUILD_VERBOSITY: 2
+  CIBW_BEFORE_BUILD: pip install -U setuptools wheel numpy Cython
+  CIBW_TEST_REQUIRES: pytest pandas polars
+  CIBW_TEST_COMMAND: >
+    cd .. &&
+    pytest --rootdir=C: -k "not RSI and not threading" {project}/tests
+  CIBW_TEST_SKIP: "*win32 cp37* cp38* cp39*"
+  CIBW_SKIP: "pp* cp36*"
+  MSBUILDTREATHIGHERTOOLSVERSIONASCURRENT: 1
+jobs:
+  build_wheels:
+    name: Build wheels for Py${{ matrix.python-version }} (${{ matrix.arch_config.platform }})
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false  # 一个任务失败不会终止其他任务
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]  # Python 版本
+        arch_config:
+          - { cibw: 'x86',   platform: 'win32',     vs_arch: 'x86' }   # 32位配置
+          - { cibw: 'AMD64', platform: 'win_amd64', vs_arch: 'x64' }   # 64位配置
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch_config.vs_arch == 'x86' && 'amd64_x86' || 'amd64' }}
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: ${{ matrix.arch_config.vs_arch }}
+
+      - name: Build TA-Lib C library
+        run: build.cmd
+        shell: cmd
+
+      - name: Install cibuildwheel
+        run: |
+          python -m pip install cibuildwheel==2.22.0
+
+      - name: Build wheels
+        env:
+          CIBW_ARCHS_WINDOWS: ${{ matrix.arch_config.cibw }}
+          CIBW_BUILD: cp${{ matrix.python-version == '3.7' && '37' || matrix.python-version == '3.8' && '38' || matrix.python-version == '3.9' && '39' || matrix.python-version == '3.10' && '310' || matrix.python-version == '3.11' && '311' || matrix.python-version == '3.12' && '312' }}-${{ matrix.arch_config.platform }}
+          CIBW_ENVIRONMENT_WINDOWS: >
+            TA_LIBRARY_PATH="ta-lib-${{ env.TALIB_C_VER }}\_build;$LIB"
+            TA_INCLUDE_PATH="ta-lib-${{ env.TALIB_C_VER }}\include;$INCLUDE"
+            PIP_NO_BUILD_ISOLATION=false
+        run: |
+          python -m cibuildwheel --output-dir wheelhouse
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: talib-wheels-py${{ matrix.python-version }}-${{ matrix.arch_config.platform }}
+          path: ./wheelhouse/*.whl
+          if-no-files-found: error
