@@ -84,7 +84,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: talib-${{ TALIB_PY_VER }}-${{ runner.os }}-py${{ matrix.python-version }}-${{ matrix.arch_config.platform }} # Include OS in name
+          name: talib-${{ env.TALIB_PY_VER }}-${{ runner.os }}-py${{ matrix.python-version }}-${{ matrix.arch_config.platform }} # Include OS in name
           path: ./wheelhouse/*.whl
           if-no-files-found: error
 
@@ -102,7 +102,7 @@ jobs:
           merge-multiple: true
 
       - name: List downloaded files (DEBUGGING)
-        run: ls -R wheelhouse_release   # -laR for detailed recursive listing
+        run: ls -R wheelhouse_release
 
       - name: Create GitHub Release  # 步骤名称：创建 GitHub Release
         id: create_release  #  IMPORTANT: Add an ID to this step
