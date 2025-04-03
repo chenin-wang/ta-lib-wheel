@@ -87,6 +87,7 @@ jobs:
           path: wheelhouse_release  # 下载到 wheelhouse_release 目录
 
       - name: Create GitHub Release  # 步骤名称：创建 GitHub Release
+        id: create_release  #  IMPORTANT: Add an ID to this step
         uses: actions/create-release@v1  # 使用 actions/create-release@v1 action 创建 Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 使用 GITHUB_TOKEN secret 进行身份验证，用于创建 Release
