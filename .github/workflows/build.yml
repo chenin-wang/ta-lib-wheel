@@ -86,6 +86,9 @@ jobs:
           pattern: talib-wheels-*  # 下载所有匹配 "talib-wheels-" 前缀的 artifacts (即 build_wheels Job 上传的 wheels)
           path: wheelhouse_release  # 下载到 wheelhouse_release 目录
 
+      - name: Unzip Wheels  # IMPORTANT: Add this step
+        run: unzip -o "wheelhouse_release/*.zip" -d wheelhouse_release  # Use unzip command
+
       - name: Create GitHub Release  # 步骤名称：创建 GitHub Release
         id: create_release  #  IMPORTANT: Add an ID to this step
         uses: actions/create-release@v1  # 使用 actions/create-release@v1 action 创建 Release
