@@ -67,7 +67,7 @@ jobs:
             chmod +x build.sh  # Make build.sh executable
             ./build.sh        # Run the Linux build script
           fi
-        shell: bash
+        shell: ${{ runner.os == 'Windows' && 'cmd' || 'bash' }}
 
       - name: Install cibuildwheel
         run: |
@@ -77,8 +77,10 @@ jobs:
         env:
           CIBW_ARCHS_WINDOWS: ${{ matrix.arch_config.cibw }}
           CIBW_ARCHS_LINUX: ${{ matrix.arch_config.cibw }}
-          TA_LIBRARY_PATH: ${{ runner.os == 'Windows' && format('ta-lib-{0}\\_build;$LIB', env.TALIB_C_VER) || format('ta-lib-{0}/_build:$LIB', env.TALIB_C_VER) }} # Conditional path
-          TA_INCLUDE_PATH: ${{ runner.os == 'Windows' && format('ta-lib-{0}\\include;$INCLUDE', env.TALIB_C_VER) || format('ta-lib-{0}/include:$INCLUDE', env.TALIB_C_VER) }}  # Conditional path
+          CIBW_ENVIRONMENT_WINDOWS: >  # 设置 cibuildwheel 构建 Windows 环境时的环境变量
+            TA_LIBRARY_PATH="ta-lib-$TALIB_C_VER\\_build;$LIB"
+            TA_INCLUDE_PATH="ta-lib-$TALIB_C_VER\\include;$INCLUDE"
+            PIP_NO_BUILD_ISOLATION=false
           PIP_NO_BUILD_ISOLATION: false # Only if necessary. Use `true` if possible
         run: python -m cibuildwheel --output-dir wheelhouse
 

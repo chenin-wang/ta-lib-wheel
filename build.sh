@@ -36,7 +36,7 @@ pushd "ta-lib-$TALIB_C_VER"
 
 # Create ta-lib subdirectory and copy header files (if necessary)
 mkdir -p include/ta-lib
-cp -r include/* include/ta-lib
+cp -r include/*.h include/ta-lib  # Copy only the .h files
 
 # Create build directory
 mkdir -p _build
