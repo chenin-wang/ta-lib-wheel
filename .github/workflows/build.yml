@@ -39,7 +39,7 @@ jobs:
           - os: ubuntu-20.04
             arch_config: { cibw: 'AMD64', platform: 'win_amd64', vs_arch: 'x64' }
           - os: windows-latest
-            arch_config: { cibw: 'x86_64', platform: 'manylinux_2_17_x86_64', vs_arch: 'x64', linux_arch: 'x86_64' } # No Linux platform on Windows
+            arch_config: { cibw: 'x86_64', platform: 'manylinux_2_17_x86_64', vs_arch: 'x64'} # No Linux platform on Windows
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
