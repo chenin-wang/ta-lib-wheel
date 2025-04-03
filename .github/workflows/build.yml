@@ -102,5 +102,5 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}  # 从 create_release 步骤获取上传 URL
           asset_path: wheelhouse_release/*.whl
-          asset_name: ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.run_id }}-${{ matrix.os }}-${{ matrix.python_version }}-${{ matrix.arch_config.platform }}-${{ basename(filespath) }}  # Asset 名称，可以自定义，这里包含仓库名、标签名、run ID 等信息
+          asset_name: ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.run_id }}-${{ matrix.os }}-${{ matrix.python_version }}-${{ matrix.arch_config.platform }} # Asset 名称，可以自定义，这里包含仓库名、标签名、run ID 等信息
           asset_content_type: application/octet-stream
