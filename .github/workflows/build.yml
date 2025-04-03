@@ -16,7 +16,8 @@ env:
   CIBW_TEST_REQUIRES: pytest pandas polars
   CIBW_TEST_COMMAND: >  # cibuildwheel 运行测试的命令
     pytest {project}/tests -k "not RSI and not threading" --verbose
-  CIBW_SKIP: "pp* cp36* cp37*"  # cibuildwheel 跳过构建 wheel 的平台和 Python 版本组合： PyPy 和 Python 3.6
+  CIBW_TEST_SKIP: "*win32 cp37* cp38* cp39*" # cibuildwheel 跳过构建 wheel 的平台和 Python 版本组合
+  CIBW_SKIP: "pp* cp36* cp37*"  # cibuildwheel 跳过构建 wheel 的平台和 Python 版本组合
   MSBUILDTREATHIGHERTOOLSVERSIONASCURRENT: 1  # MSBuild 使用最新的工具集版本
 
 jobs:
@@ -37,7 +38,7 @@ jobs:
         uses: actions/checkout@v4  # 使用 actions/checkout@v4 action 来检出代码
 
       - name: Setup MSVC Developer Command Prompt  # 步骤名称：设置 MSVC 开发者命令提示符环境
-        uses: ilammy/msvc-dev-cmd@v1  # 使用 ilammy/msvc-dev-cmd@v1 action 来设置 MSVC 环境
+        uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: ${{ matrix.arch_config.vs_arch == 'x86' && 'amd64_x86' || 'amd64' }}  # 根据目标架构配置 MSVC 环境：32位使用 amd64_x86 交叉编译工具链，64位使用 amd64 本地编译工具链
 
