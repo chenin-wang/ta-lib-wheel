@@ -67,7 +67,7 @@ jobs:
             chmod +x build.sh  # Make build.sh executable
             ./build.sh        # Run the Linux build script
           fi
-        shell: ${{ runner.os == 'Windows' && 'cmd' || 'bash' }}
+        shell: ${{ env.RUNNER_OS == 'Windows' && 'cmd' || 'bash' }}
 
       - name: Install cibuildwheel
         run: |
