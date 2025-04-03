@@ -1,72 +1,106 @@
 name: Build TA-Lib wheels for Windows
 
 on:
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:  # 允许手动触发工作流程，方便手动构建
+  push:
+    tags:
+      - 'v*.*.*' # 当推送匹配 'v*.*.*' 格式的标签时触发工作流程，用于发布 release 版本
 
 env:
-  TALIB_C_VER: 0.6.4
-  TALIB_PY_VER: 0.6.3
-  PIP_NO_VERIFY: 0
-  PIP_VERBOSE: 1
-  CIBW_BUILD_VERBOSITY: 2
-  CIBW_BEFORE_BUILD: pip install -U setuptools wheel numpy Cython
+  TALIB_C_VER: 0.6.4  # TA-Lib C 库版本
+  TALIB_PY_VER: 0.6.3  # TA-Lib Python 包版本
+  PIP_NO_VERIFY: 0    # pip 安装时是否跳过 SSL 证书验证 (0: 否, 1: 是)
+  PIP_VERBOSE: 1      # pip 安装时显示详细输出 (0: 否, 1: 是)
+  CIBW_BUILD_VERBOSITY: 2  # cibuildwheel 构建时的详细程度 (0-3, 越高越详细)
+  CIBW_BEFORE_BUILD: pip install -U setuptools wheel numpy Cython 
   CIBW_TEST_REQUIRES: pytest pandas polars
-  CIBW_TEST_COMMAND: >
-    cd .. &&
-    pytest --rootdir=C: -k "not RSI and not threading" {project}/tests
-  CIBW_TEST_SKIP: "*win32 cp37* cp38* cp39*"
-  CIBW_SKIP: "pp* cp36*"
-  MSBUILDTREATHIGHERTOOLSVERSIONASCURRENT: 1
+  CIBW_TEST_COMMAND: >  # cibuildwheel 运行测试的命令
+    pytest {project}/tests -k "not RSI and not threading" --verbose
+  CIBW_SKIP: "pp* cp36* cp37*"  # cibuildwheel 跳过构建 wheel 的平台和 Python 版本组合： PyPy 和 Python 3.6
+  MSBUILDTREATHIGHERTOOLSVERSIONASCURRENT: 1  # MSBuild 使用最新的工具集版本
+
 jobs:
   build_wheels:
     name: Build wheels for Py${{ matrix.python-version }} (${{ matrix.arch_config.platform }})
     runs-on: windows-latest
 
     strategy:
-      fail-fast: false  # 一个任务失败不会终止其他任务
+      fail-fast: false  # 矩阵构建中，一个任务失败不会终止其他任务
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]  # Python 版本
-        arch_config:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        arch_config:  # 架构配置矩阵：构建 32位和 64位 架构的 wheel
           - { cibw: 'x86',   platform: 'win32',     vs_arch: 'x86' }   # 32位配置
           - { cibw: 'AMD64', platform: 'win_amd64', vs_arch: 'x64' }   # 64位配置
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout code  # 步骤名称：检出代码
+        uses: actions/checkout@v4  # 使用 actions/checkout@v4 action 来检出代码
 
-      - name: Setup MSVC Developer Command Prompt
-        uses: ilammy/msvc-dev-cmd@v1
+      - name: Setup MSVC Developer Command Prompt  # 步骤名称：设置 MSVC 开发者命令提示符环境
+        uses: ilammy/msvc-dev-cmd@v1  # 使用 ilammy/msvc-dev-cmd@v1 action 来设置 MSVC 环境
         with:
-          arch: ${{ matrix.arch_config.vs_arch == 'x86' && 'amd64_x86' || 'amd64' }}
+          arch: ${{ matrix.arch_config.vs_arch == 'x86' && 'amd64_x86' || 'amd64' }}  # 根据目标架构配置 MSVC 环境：32位使用 amd64_x86 交叉编译工具链，64位使用 amd64 本地编译工具链
 
-      - name: Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Setup Python ${{ matrix.python-version }}  # 步骤名称：设置 Python 环境
+        uses: actions/setup-python@v5 
         with:
-          python-version: ${{ matrix.python-version }}
-          architecture: ${{ matrix.arch_config.vs_arch }}
+          python-version: ${{ matrix.python-version }} 
+          architecture: ${{ matrix.arch_config.vs_arch }}  # 设置 Python 架构 (32位或 64位)
 
-      - name: Build TA-Lib C library
+      - name: Build TA-Lib C library  # 步骤名称：构建 TA-Lib C 库
         run: build.cmd
         shell: cmd
 
-      - name: Install cibuildwheel
+      - name: Install cibuildwheel  # 步骤名称：安装 cibuildwheel
         run: |
-          python -m pip install cibuildwheel
+          python -m pip install cibuildwheel 
 
-      - name: Build wheels
+      - name: Build wheels  # 步骤名称：构建 wheel 文件
         env:
-          CIBW_ARCHS_WINDOWS: ${{ matrix.arch_config.cibw }}
-          CIBW_BUILD: cp${{ matrix.python-version == '3.8' && '38' || matrix.python-version == '3.9' && '39' || matrix.python-version == '3.10' && '310' || matrix.python-version == '3.11' && '311' || matrix.python-version == '3.12' && '312' }}-${{ matrix.arch_config.platform }}
-          CIBW_ENVIRONMENT_WINDOWS: >
+          CIBW_ARCHS_WINDOWS: ${{ matrix.arch_config.cibw }}  # 设置 cibuildwheel 构建的 Windows 架构 (x86 或 AMD64)
+          CIBW_BUILD: cp${{ matrix.python-version == '3.7' && '37' || matrix.python-version == '3.8' && '38' || matrix.python-version == '3.9' && '39' || matrix.python-version == '3.10' && '310' || matrix.python-version == '3.11' && '311' || matrix.python-version == '3.12' && '312' }}-${{ matrix.arch_config.platform }}  # 设置 cibuildwheel 构建的 Python 版本和平台标签
+          CIBW_ENVIRONMENT_WINDOWS: >  # 设置 cibuildwheel 构建 Windows 环境时的环境变量
             TA_LIBRARY_PATH="ta-lib-$TALIB_C_VER\\_build;$LIB"
             TA_INCLUDE_PATH="ta-lib-$TALIB_C_VER\\include;$INCLUDE"
             PIP_NO_BUILD_ISOLATION=false
         run: |
-          python -m cibuildwheel --output-dir wheelhouse
+          python -m cibuildwheel --output-dir wheelhouse  # 运行 cibuildwheel 命令，将 wheel 文件输出到 wheelhouse 目录
 
-      - name: Upload wheels
+      - name: Upload wheels  # 步骤名称：上传 wheel 文件为 Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: talib-wheels-py${{ matrix.python-version }}-${{ matrix.arch_config.platform }}
-          path: ./wheelhouse/*.whl
-          if-no-files-found: error
+          name: talib-wheels-py${{ matrix.python-version }}-${{ matrix.arch_config.platform }}  # Artifacts 名称，包含 Python 版本和平台信息
+          path: ./wheelhouse/*.whl  # Artifacts 路径，上传 wheelhouse 目录下的所有 .whl 文件
+          if-no-files-found: error  # 如果没有找到文件则报错
+
+  release_wheels:
+    name: Release wheels to GitHub Releases  # Job 名称：发布 wheel 文件到 GitHub Releases
+    runs-on: ubuntu-latest
+    needs: build_wheels  # 依赖 build_wheels Job，确保 build_wheels 完成后才运行
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')  # 仅在 push 标签 (以 'v' 开头) 时运行 Release Job
+    steps:
+      - name: Download all wheel artifacts  # 步骤名称：下载所有 wheel artifacts
+        uses: actions/download-artifact@v4  # 使用 actions/download-artifact@v4 action 下载 artifacts
+        with:
+          pattern: talib-wheels-*  # 下载所有匹配 "talib-wheels-" 前缀的 artifacts (即 build_wheels Job 上传的 wheels)
+          path: wheelhouse_release  # 下载到 wheelhouse_release 目录
+
+      - name: Create GitHub Release  # 步骤名称：创建 GitHub Release
+        uses: actions/create-release@v1  # 使用 actions/create-release@v1 action 创建 Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 使用 GITHUB_TOKEN secret 进行身份验证，用于创建 Release
+        with:
+          tag_name: ${{ github.ref_name }}  # Release tag 名称，使用触发 workflow 的标签名
+          release_name: Release ${{ github.ref_name }} 
+          draft: false  # 设置为 false 直接发布 Release，设置为 true 则创建为草稿
+          prerelease: false  # 设置为 false 发布正式 Release，设置为 true 发布预发布版本
+
+      - name: Upload Release Assets  # 步骤名称：上传 Release assets
+        uses: actions/upload-release-asset@v1  # 使用 actions/upload-release-asset@v1 action 上传 assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 使用 GITHUB_TOKEN secret 进行身份验证，用于上传 assets
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}  # 从 create_release 步骤获取上传 URL
+          asset_path: wheelhouse_release/*.whl
+          asset_name: ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.run_id }}-${{ matrix.os }}-${{ matrix.python_version }}-${{ matrix.arch_config.platform }}-${{ basename(filespath) }}  # Asset 名称，可以自定义，这里包含仓库名、标签名、run ID 等信息
+          asset_content_type: application/octet-stream
