@@ -43,7 +43,7 @@ mkdir -p _build
 pushd _build
 
 # Configure and build (adjust these commands as needed for TA-Lib on Linux)
-./configure --prefix="$PWD/install"  # Example: Install to a local directory
+../configure --prefix="$PWD/install"  # Run configure from the parent directory
 make
 make install # install to the local directory
 
