@@ -59,15 +59,17 @@ jobs:
           python-version: ${{ matrix.python-version }}
           architecture: ${{ matrix.arch_config.vs_arch }}
 
-      - name: Build TA-Lib C library
+      - name: Build TA-Lib C library (Windows)
+        if: runner.os == 'Windows'
+        run: build.cmd
+        shell: cmd
+
+      - name: Build TA-Lib C library (Linux)
+        if: runner.os != 'Windows'
         run: |
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            build.cmd
-          else
-            chmod +x build.sh  # Make build.sh executable
-            ./build.sh        # Run the Linux build script
-          fi
-        shell: ${{ env.RUNNER_OS == 'Windows' && 'cmd' || 'bash' }}
+          chmod +x build.sh
+          ./build.sh
+        shell: bash
 
       - name: Install cibuildwheel
         run: |
