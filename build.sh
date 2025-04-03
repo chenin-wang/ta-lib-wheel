@@ -52,12 +52,8 @@ C_BUILD_DIR="$(pwd)/$EXPECTED_C_SRC_DIR/build/lib" # Assuming make puts libs her
 C_INCLUDE_DIR="$(pwd)/$EXPECTED_C_SRC_DIR/include" # Assuming configure puts headers here
 
 pushd "$EXPECTED_C_SRC_DIR" # Change into C source directory
-
-# Configure to build without installing globally
-# Common practice is to build within the source tree
-# Adjust configure flags if needed (e.g., --prefix=$(pwd)/build to install locally if desired)
-./configure --prefix=$(pwd)/build # Configure to install into a local 'build' subdirectory
-
+echo "pwd path: $(pwd)..."
+./configure
 # Build the library
 make
 
