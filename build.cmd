@@ -99,11 +99,7 @@ if %errorlevel% neq 0 (
     exit /B 1
 )
 
-:: git apply --verbose --binary talib.diff
-:: if errorlevel 1 exit /B 1
-
-:: set MSBUILDTREATHIGHERTOOLSVERSIONASCURRENT
-
+:: 设置错误处理，如果任何命令失败，则退出
 setlocal
 cd ta-lib-%TALIB_C_VER%
 

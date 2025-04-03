@@ -22,57 +22,71 @@ env:
 
 jobs:
   build_wheels:
-    name: Build wheels for Py${{ matrix.python-version }} (${{ matrix.arch_config.platform }})
-    runs-on: windows-latest
-
+    name: Build wheels for ${{ matrix.os }} Py${{ matrix.python-version }} (${{ matrix.arch_config.platform }})
+    runs-on: ${{ matrix.os }} # Runs on Windows or Linux
     strategy:
-      fail-fast: false  # 矩阵构建中，一个任务失败不会终止其他任务
+      fail-fast: false
       matrix:
+        os: [windows-latest, ubuntu-latest]  # Add ubuntu-latest
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-        arch_config:  # 架构配置矩阵：构建 32位和 64位 架构的 wheel
-          - { cibw: 'x86',   platform: 'win32',     vs_arch: 'x86' }   # 32位配置
-          - { cibw: 'AMD64', platform: 'win_amd64', vs_arch: 'x64' }   # 64位配置
+        arch_config:
+          - { cibw: 'x86',   platform: 'win32',     vs_arch: 'x86' }
+          - { cibw: 'AMD64', platform: 'win_amd64', vs_arch: 'x64' }
+          - { cibw: 'x86_64', platform: 'manylinux_2_17_x86_64', vs_arch: 'x64' } # Linux x86_64  (manylinux2014 also common)
+          - { cibw: 'aarch64', platform: 'manylinux_2_17_aarch64', vs_arch: 'arm64' } # Linux aarch64 (manylinux2014 also common)
+        exclude: # Exclude impossible combinations (adjust as needed)
+          - os: ubuntu-latest
+            arch_config: { cibw: 'x86', platform: 'win32', vs_arch: 'x86' }
+          - os: ubuntu-latest
+            arch_config: { cibw: 'AMD64', platform: 'win_amd64', vs_arch: 'x64' }
+          - os: windows-latest
+            arch_config: { cibw: 'x86_64', platform: 'manylinux_2_17_x86_64', vs_arch: 'x64' }
+          - os: windows-latest
+            arch_config: { cibw: 'aarch64', platform: 'manylinux_2_17_aarch64', vs_arch: 'arm64' }
 
     steps:
-      - name: Checkout code  # 步骤名称：检出代码
-        uses: actions/checkout@v4  # 使用 actions/checkout@v4 action 来检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Setup MSVC Developer Command Prompt  # 步骤名称：设置 MSVC 开发者命令提示符环境
+      - name: Setup MSVC Developer Command Prompt # Only for Windows
+        if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
         with:
-          arch: ${{ matrix.arch_config.vs_arch == 'x86' && 'amd64_x86' || 'amd64' }}  # 根据目标架构配置 MSVC 环境：32位使用 amd64_x86 交叉编译工具链，64位使用 amd64 本地编译工具链
+          arch: ${{ matrix.arch_config.vs_arch == 'x86' && 'amd64_x86' || 'amd64' }}
 
-      - name: Setup Python ${{ matrix.python-version }}  # 步骤名称：设置 Python 环境
-        uses: actions/setup-python@v5 
+      - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }} 
-          architecture: ${{ matrix.arch_config.vs_arch }}  # 设置 Python 架构 (32位或 64位)
+          python-version: ${{ matrix.python-version }}
+          architecture: ${{ matrix.arch_config.vs_arch }}
 
-      - name: Build TA-Lib C library  # 步骤名称：构建 TA-Lib C 库
-        run: build.cmd
-        shell: cmd
+      - name: Build TA-Lib C library
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            build.cmd
+          else
+            chmod +x build.sh  # Make build.sh executable
+            ./build.sh        # Run the Linux build script
+          fi
+        shell: bash
 
-      - name: Install cibuildwheel  # 步骤名称：安装 cibuildwheel
+      - name: Install cibuildwheel
         run: |
           python -m pip install cibuildwheel 
 
-      - name: Build wheels  # 步骤名称：构建 wheel 文件
+      - name: Build wheels
         env:
-          CIBW_ARCHS_WINDOWS: ${{ matrix.arch_config.cibw }}  # 设置 cibuildwheel 构建的 Windows 架构 (x86 或 AMD64)
-          CIBW_BUILD: cp${{ matrix.python-version == '3.7' && '37' || matrix.python-version == '3.8' && '38' || matrix.python-version == '3.9' && '39' || matrix.python-version == '3.10' && '310' || matrix.python-version == '3.11' && '311' || matrix.python-version == '3.12' && '312' }}-${{ matrix.arch_config.platform }}  # 设置 cibuildwheel 构建的 Python 版本和平台标签
-          CIBW_ENVIRONMENT_WINDOWS: >  # 设置 cibuildwheel 构建 Windows 环境时的环境变量
-            TA_LIBRARY_PATH="ta-lib-$TALIB_C_VER\\_build;$LIB"
-            TA_INCLUDE_PATH="ta-lib-$TALIB_C_VER\\include;$INCLUDE"
-            PIP_NO_BUILD_ISOLATION=false
-        run: |
-          python -m cibuildwheel --output-dir wheelhouse  # 运行 cibuildwheel 命令，将 wheel 文件输出到 wheelhouse 目录
+          CIBW_ARCHS_WINDOWS: ${{ matrix.arch_config.cibw }}
+          CIBW_ARCHS_LINUX: ${{ matrix.arch_config.cibw }}
+          TA_LIBRARY_PATH: ${{ runner.os == 'Windows' && format('ta-lib-{0}\\_build;$LIB', env.TALIB_C_VER) || format('ta-lib-{0}/_build:$LIB', env.TALIB_C_VER) }} # Conditional path
+          TA_INCLUDE_PATH: ${{ runner.os == 'Windows' && format('ta-lib-{0}\\include;$INCLUDE', env.TALIB_C_VER) || format('ta-lib-{0}/include:$INCLUDE', env.TALIB_C_VER) }}  # Conditional path
+          PIP_NO_BUILD_ISOLATION: false # Only if necessary. Use `true` if possible
+        run: python -m cibuildwheel --output-dir wheelhouse
 
-      - name: Upload wheels  # 步骤名称：上传 wheel 文件为 Artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: talib-wheels-py${{ matrix.python-version }}-${{ matrix.arch_config.platform }}  # Artifacts 名称，包含 Python 版本和平台信息
-          path: ./wheelhouse/*.whl  # Artifacts 路径，上传 wheelhouse 目录下的所有 .whl 文件
-          if-no-files-found: error  # 如果没有找到文件则报错
+          name: talib-${{ TALIB_PY_VER }}-${{ runner.os }}-py${{ matrix.python-version }}-${{ matrix.arch_config.platform }} # Include OS in name
+          path: ./wheelhouse/*.whl
+          if-no-files-found: error
 
   release_wheels:
     name: Release wheels to GitHub Releases  # Job 名称：发布 wheel 文件到 GitHub Releases
@@ -80,14 +94,15 @@ jobs:
     needs: build_wheels  # 依赖 build_wheels Job，确保 build_wheels 完成后才运行
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')  # 仅在 push 标签 (以 'v' 开头) 时运行 Release Job
     steps:
-      - name: Download all wheel artifacts  # 步骤名称：下载所有 wheel artifacts
-        uses: actions/download-artifact@v4  # 使用 actions/download-artifact@v4 action 下载 artifacts
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v4
         with:
-          pattern: talib-wheels-*  # 下载所有匹配 "talib-wheels-" 前缀的 artifacts (即 build_wheels Job 上传的 wheels)
+          pattern: talib-*  # 下载所有匹配 "talib-" 前缀的 artifacts (即 build_wheels Job 上传的 wheels)
           path: wheelhouse_release  # 下载到 wheelhouse_release 目录
+          merge-multiple: true
 
-      - name: Unzip Wheels  # IMPORTANT: Add this step
-        run: unzip -o "wheelhouse_release/*.zip" -d wheelhouse_release  # Use unzip command
+      - name: List downloaded files (DEBUGGING)
+        run: ls -R wheelhouse_release   # -laR for detailed recursive listing
 
       - name: Create GitHub Release  # 步骤名称：创建 GitHub Release
         id: create_release  #  IMPORTANT: Add an ID to this step
